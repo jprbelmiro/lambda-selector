@@ -4,22 +4,31 @@
 
 using namespace std;
 
-void drawSampleMeridians(center){
-    center=your half circle centre
-    axes = Size(radius ,radius);
-    angle=0;
-    startAngle=0;
-    endAngle=180;
+#define NUM_OF_MERIDIANS 32
+#define INITIAL_RADIUS 10
+#define INCREMENTAL_RADIUS 5
 
-    ellipse(img,Point(centX,centY), Size(radius,radiua),0,0,180, Scalar(0,0,255), 2, 8,0);
+void drawSampleMeridians(cv::Mat img, cv::Point center, int radius){
+    cv::Size axes(radius, radius);
+    double angle=0;
+    double startAngle=0;
+    double endAngle=180;
+
+    ellipse(img, center, axes, 0,0,180, cv::Scalar(255), 1, 8);
 }
 int main(){
-	center=your half circle centre
-    axes = Size(radius ,radius);
-    angle=0;
-    startAngle=0;
-    endAngle=180;
+	cv::Mat img(300, 400, CV_8UC1, cv::Scalar(0));
+	cv::Point center(200,0);
 
-    ellipse(img,Point(centX,centY), Size(radius,radiua),0,0,180, Scalar(0,0,255), 2, 8,0);
+	for(int i = 0; i < NUM_OF_MERIDIANS; i++){
+		drawSampleMeridians(img, center, INITIAL_RADIUS + i*INCREMENTAL_RADIUS);
+	}
+	
+	cv::namedWindow("Meridians", cv::WINDOW_AUTOSIZE );
+    imshow("Meridians", img);
+    
+    cv::waitKey(0);
+
+    return 0;
 }
 
