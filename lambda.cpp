@@ -1,34 +1,126 @@
+#include<stdio.h>
 #include<iostream>
-#include<cmath>
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp> 
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 using namespace std;
 
-#define NUM_OF_MERIDIANS 32
-#define INITIAL_RADIUS 10
-#define INCREMENTAL_RADIUS 5
+#define RADIUS 170
+#define CENTER_X 328
+#define CENTER_Y 273
 
-void drawSampleMeridians(cv::Mat img, cv::Point center, int radius){
+void GetIrisRegion(cv::Mat *mask, int radius){
+	*mask = cv::Mat::zeros(radius, 2*radius, CV_8UC1);
     cv::Size axes(radius, radius);
+    cv::Point center(170, 0);
     double angle=0;
     double startAngle=0;
     double endAngle=180;
 
-    ellipse(img, center, axes, 0,0,180, cv::Scalar(255), 1, 8);
+
+    ellipse(*mask, center, axes, angle, startAngle, endAngle, cv::Scalar(255), -1, 8);
 }
-int main(){
-	cv::Mat img(300, 400, CV_8UC1, cv::Scalar(0));
-	cv::Point center(200,0);
 
-	for(int i = 0; i < NUM_OF_MERIDIANS; i++){
-		drawSampleMeridians(img, center, INITIAL_RADIUS + i*INCREMENTAL_RADIUS);
+void GetInputIrisRegion(cv::Mat input, cv::Mat *output, cv::Mat mask){
+	output->create(mask.size(), mask.type());
+
+	cv::Point offset(CENTER_X-RADIUS, CENTER_Y);
+	for(int j = 0; j < output->rows; j++){
+		for(int i = 0; i < output->cols; i++){
+			if(mask.at<uchar>(j,i) == 255)
+				output->at<uchar>(j,i) = input.at<uchar>(offset.y + j, offset.x + i);
+			else 
+				output->at<uchar>(j,i) = 0;
+		} 
 	}
-	
-	cv::namedWindow("Meridians", cv::WINDOW_AUTOSIZE );
-    imshow("Meridians", img);
-    
-    cv::waitKey(0);
+	cv::threshold(*output, *output, 127, 255, cv::THRESH_BINARY_INV);
+}
 
-    return 0;
+void DFTIris(cv::Mat Iris){
+	cv::Mat padded;                            //expand input image to optimal size
+	int m = cv::getOptimalDFTSize( Iris.rows );
+	int n = cv::getOptimalDFTSize( Iris.cols ); // on the border add zero values
+	//cv::copyMakeBorder(output, padded, 0, m - output.rows, 0, n - output.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+	cv::Mat planes[] = { cv::Mat_<float>(Iris), cv::Mat::zeros(Iris.size(), CV_32F)};
+
+	cv::Mat complexI;
+  	cv::merge(planes, 2, complexI);
+	cv::dft(complexI, complexI);//, cv::DFT_COMPLEX_OUTPUT
+	cv::split(complexI, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+	cv::magnitude(planes[0], planes[1], planes[0]);
+    
+	cv::Mat magI = planes[0];
+	//phase += cv::Scalar::all(1); 
+
+	cout << magI.rows << " " << magI.cols << endl;
+
+	double min, max;
+	cv::Point min_loc, max_loc;
+
+
+	std::vector<int> magcol;
+	for(int i = 0; i < magI.cols; i++){
+		magcol.push_back(magI.at<double>(i,170));
+		cout << magI.at<float>(i,170)<< "---";
+	}
+
+	cv::minMaxLoc(magcol, &min, &max, &min_loc, &max_loc);
+	cout <<  180 / max << endl;
+	cout << max_loc << endl;
+
+}
+
+string type2str(int type) {
+	string r;
+
+	uchar depth = type & CV_MAT_DEPTH_MASK;
+	uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+	switch ( depth ) {
+		case CV_8U:  r = "8U"; break;
+		case CV_8S:  r = "8S"; break;
+		case CV_16U: r = "16U"; break;
+		case CV_16S: r = "16S"; break;
+		case CV_32S: r = "32S"; break;
+		case CV_32F: r = "32F"; break;
+		case CV_64F: r = "64F"; break;
+		default:     r = "User"; break;
+	}
+
+	r += "C";
+	r += (chans+'0');
+
+	return r;
+}
+
+
+int main(int argc, char **argv){
+	cv::Mat input;
+	cv::Mat iris;
+	cv::Mat mask;
+	
+	//need to resize center
+	cv::Point center(CENTER_X, CENTER_Y);
+
+	//Input image and input type for debugging
+	if(argc == 2){
+		input = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
+		cout << type2str(input.type()) << '\n';
+	} else {
+		printf("Error, usage: %s imageName\n", argv[0]);
+		exit(-1);
+	}
+
+	GetIrisRegion(&mask, RADIUS);	
+	imshow("interpolation.png", mask);
+	cv::waitKey(0);
+	GetInputIrisRegion(input, &iris, mask);
+	imshow("interpolation.png", iris);
+	cv::waitKey(0);
+	DFTIris(iris);
+
+	return 0;
 }
 
