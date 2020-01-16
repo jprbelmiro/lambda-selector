@@ -58,19 +58,3 @@ double Radius(double x, double y){
 	return rad;
 }	
 
-
-int main(){
-	double x, y;
-
-	y = 4.0;
-	x = 2;
-
-    Cartesian center = Cartesian(x, y);
-    Polar pCenter = center.toPolar();
-    cout << center.x << "," << center.y << endl;
-    cout << pCenter.a << "," <<pCenter.t << endl;
-    center = pCenter.toCartesian();
-	cout << center.x << "," << center.y << endl;
-    return 0;
-}
-

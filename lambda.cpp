@@ -3,17 +3,18 @@
 #include <opencv2/core.hpp> 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include "coordinates.cpp"
 
 using namespace std;
 
-#define RADIUS 170
+#define RADIUS 185
 #define CENTER_X 328
 #define CENTER_Y 273
 
 void GetIrisRegion(cv::Mat *mask, int radius){
 	*mask = cv::Mat::zeros(radius, 2*radius, CV_8UC1);
     cv::Size axes(radius, radius);
-    cv::Point center(170, 0);
+    cv::Point center(radius, 0);
     double angle=0;
     double startAngle=0;
     double endAngle=180;
@@ -34,10 +35,55 @@ void GetInputIrisRegion(cv::Mat input, cv::Mat *output, cv::Mat mask){
 				output->at<uchar>(j,i) = 0;
 		} 
 	}
-	cv::threshold(*output, *output, 127, 255, cv::THRESH_BINARY_INV);
+	//cv::threshold(*output, *output, 127, 255, cv::THRESH_BINARY_INV);
 }
 
-void DFTIris(cv::Mat Iris){
+void getLineVec(cv::Mat Iris, std::vector<float> *line, cv::Point center, int radius, double theta){
+	Polar pol(radius, theta);
+	Cartesian cart = pol.toCartesian();
+	cv::Point endLine(center.x - cart.x, center.y - cart.y);
+
+	cv::LineIterator it(Iris, center, endLine, 8);
+	for(int i = 0; i < it.count; i++, ++it){
+    	line->push_back((float) **it);
+	}
+}
+
+void GetIrisFreq(cv::Mat Iris){
+	//in Get Iris Region we set the height size equals to radius
+	int radius = Iris.size().height;
+	cv::Point center(radius, 0);
+	std::vector<float> line;
+	double min, max;
+	cv::Point min_loc, max_loc;
+	cv::Mat complexI(line.size(), line.size(), CV_32F);
+	float alpha = 1.0f / radius, freq;
+	int optLen, samples = 0; 
+
+	for(double theta = CV_PI; theta < 2*CV_PI; theta += 0.1){
+		getLineVec(Iris, &line, center, radius, theta);
+		optLen = cv::getOptimalDFTSize(line.size());
+		cv::dft(line, complexI, 0);
+
+		//tntar com /complexI.size()
+		//cv::Core.divide(1.0/radius, complexI, complexI);
+		complexI.at<float>(0) = 0.0f;
+		complexI = abs(complexI) * alpha;
+
+		cv::minMaxLoc(complexI, &min, &max, &min_loc, &max_loc);
+		cout <<  max_loc.x << endl;
+		freq += line.size()/(max_loc.x);
+		cout << "freq (" << samples + 1 << ") = " << radius/(max_loc.x)<< endl;
+
+		samples++;
+		line.clear();
+	}
+
+	cout << "Estimate frequency = " << freq/samples << endl;
+
+	//changes here
+	/*
+
 	cv::Mat padded;                            //expand input image to optimal size
 	int m = cv::getOptimalDFTSize( Iris.rows );
 	int n = cv::getOptimalDFTSize( Iris.cols ); // on the border add zero values
@@ -69,7 +115,7 @@ void DFTIris(cv::Mat Iris){
 	cv::minMaxLoc(magcol, &min, &max, &min_loc, &max_loc);
 	cout <<  180 / max << endl;
 	cout << max_loc << endl;
-
+	*/
 }
 
 string type2str(int type) {
@@ -119,7 +165,7 @@ int main(int argc, char **argv){
 	GetInputIrisRegion(input, &iris, mask);
 	imshow("interpolation.png", iris);
 	cv::waitKey(0);
-	DFTIris(iris);
+	GetIrisFreq(iris);
 
 	return 0;
 }
