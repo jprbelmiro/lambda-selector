@@ -23,14 +23,16 @@ with open('mag_result.csv', newline='\n') as csvfile:
 
 #complex << fft(vector)
 for (line, result) in zip(vectors, mag_result):
-	magcv = cv2.dft(line)
-	mag = scipy.fft.fftshift(scipy.fft.fft(line))
-	freq = scipy.fft.fftshift(scipy.fft.fftfreq(mag.size))
-	print(mag- magcv)
-	#print(len(mag)/np.argmax(mag))
-	#plt.plot(freq, mag)
-	#plt.waitforbuttonpress();
-	#plt.show();
+	linenp = np.asarray(line, dtype = "float32")
+	planes = [np.asarray(linenp, dtype = "float32"), np.zeros(linenp.shape, dtype = "float32")]
+	#Mat complexI;
+	#complexI = cv2.merge(planes, 2)
+	#complexI = cv2.dft(complexI, flags = cv2.DFT_ROWS)
+
+	complex_cv = cv2.dft(linenp, flags = cv2.DFT_COMPLEX_OUTPUT)
+	complex_scp = scipy.fft.fft(linenp)
+	mag_scp = abs(complex_scp)
+	print(sum(abs(mag_scp - result)))
 
 #mag_test << mag(comples)
 
